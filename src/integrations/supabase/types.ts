@@ -138,6 +138,10 @@ export type Database = {
           landmark: string | null
           latitude: number | null
           longitude: number | null
+          review_notes: string | null
+          review_status: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           state: string | null
           status: Database["public"]["Enums"]["verification_status"]
           street: string | null
@@ -159,6 +163,10 @@ export type Database = {
           landmark?: string | null
           latitude?: number | null
           longitude?: number | null
+          review_notes?: string | null
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["verification_status"]
           street?: string | null
@@ -180,6 +188,10 @@ export type Database = {
           landmark?: string | null
           latitude?: number | null
           longitude?: number | null
+          review_notes?: string | null
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["verification_status"]
           street?: string | null

@@ -1,192 +1,251 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { geocodeAddress, calculateDistanceKm } from '@/lib/geocoding';
 import type { Database } from '@/integrations/supabase/types';
 
 type Employee = Database['public']['Tables']['employees']['Row'];
 type VerificationRecord = Database['public']['Tables']['verification_records']['Row'];
+type CompanySettings = Database['public']['Tables']['company_settings']['Row'];
 
-export const useCurrentEmployee = () => {
-  const { user } = useAuth();
+export interface EmployeeWithVerification extends Employee {
+  verification_records: VerificationRecord[];
+}
 
+export const useAllEmployees = () => {
   return useQuery({
-    queryKey: ['current-employee', user?.id],
+    queryKey: ['all-employees'],
     queryFn: async () => {
-      if (!user) return null;
-      
       const { data, error } = await supabase
         .from('employees')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .select(`
+          *,
+          verification_records (*)
+        `)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as Employee | null;
+      return data as EmployeeWithVerification[];
     },
-    enabled: !!user,
   });
 };
 
-export const useEmployeeVerification = (employeeId: string | undefined) => {
+export const useEmployeeById = (employeeId: string | undefined) => {
   return useQuery({
-    queryKey: ['verification-record', employeeId],
+    queryKey: ['employee', employeeId],
     queryFn: async () => {
       if (!employeeId) return null;
       
       const { data, error } = await supabase
-        .from('verification_records')
-        .select('*')
-        .eq('employee_id', employeeId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .from('employees')
+        .select(`
+          *,
+          verification_records (*)
+        `)
+        .eq('id', employeeId)
+        .single();
 
       if (error) throw error;
-      return data as VerificationRecord | null;
+      return data as EmployeeWithVerification;
     },
     enabled: !!employeeId,
   });
 };
 
-export const useSubmitAddress = () => {
+export const useCreateEmployee = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
-      employeeId,
-      street,
-      city,
-      state,
-      zip,
-      landmark,
-      windowStart,
-      windowEnd,
+      fullName,
+      email,
+      phone,
     }: {
-      employeeId: string;
-      street: string;
-      city: string;
-      state: string;
-      zip: string;
-      landmark?: string;
-      windowStart: string;
-      windowEnd: string;
+      fullName: string;
+      email: string;
+      phone?: string;
     }) => {
-      // Geocode the address to get expected coordinates
-      const geocodeResult = await geocodeAddress(street, city, state, zip);
-      
-      // Check if a record already exists
-      const { data: existing } = await supabase
-        .from('verification_records')
-        .select('id')
-        .eq('employee_id', employeeId)
-        .maybeSingle();
+      const { data, error } = await supabase
+        .from('employees')
+        .insert({
+          full_name: fullName,
+          email,
+          phone,
+        })
+        .select()
+        .single();
 
-      const recordData = {
-        street,
-        city,
-        state,
-        zip,
-        landmark,
-        verification_window_start: windowStart,
-        verification_window_end: windowEnd,
-        status: 'pending_verification' as const,
-        expected_latitude: geocodeResult.latitude,
-        expected_longitude: geocodeResult.longitude,
-        // Reset distance fields when address changes
-        distance_km: null,
-        distance_flagged: false,
-      };
-
-      if (existing) {
-        // Update existing record
-        const { data, error } = await supabase
-          .from('verification_records')
-          .update(recordData)
-          .eq('id', existing.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        return { ...data, geocodeResult };
-      } else {
-        // Create new record
-        const { data, error } = await supabase
-          .from('verification_records')
-          .insert({
-            employee_id: employeeId,
-            ...recordData,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        return { ...data, geocodeResult };
-      }
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['verification-record'] });
+      queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     },
   });
 };
 
-export const useVerifyLocation = () => {
+export const useRequestReverification = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      recordId,
-      latitude,
-      longitude,
-      distanceThresholdKm = 1.0,
-    }: {
-      recordId: string;
-      latitude: number;
-      longitude: number;
-      distanceThresholdKm?: number;
-    }) => {
-      // First get the existing record to get expected coordinates
-      const { data: existingRecord, error: fetchError } = await supabase
-        .from('verification_records')
-        .select('expected_latitude, expected_longitude')
-        .eq('id', recordId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Calculate distance if we have expected coordinates
-      let distanceKm: number | null = null;
-      let distanceFlagged = false;
-
-      if (existingRecord?.expected_latitude && existingRecord?.expected_longitude) {
-        distanceKm = calculateDistanceKm(
-          existingRecord.expected_latitude,
-          existingRecord.expected_longitude,
-          latitude,
-          longitude
-        );
-        distanceFlagged = distanceKm > distanceThresholdKm;
-      }
-
+    mutationFn: async (recordId: string) => {
       const { data, error } = await supabase
         .from('verification_records')
         .update({
-          latitude,
-          longitude,
-          verified_at: new Date().toISOString(),
-          status: 'verified',
-          distance_km: distanceKm,
-          distance_flagged: distanceFlagged,
+          status: 'reverification_required',
+          verified_at: null,
+          latitude: null,
+          longitude: null,
         })
         .eq('id', recordId)
         .select()
         .single();
 
       if (error) throw error;
-      return { ...data, distanceKm, distanceFlagged };
+      return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['verification-record'] });
+      queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employee'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    },
+  });
+};
+
+export const useReviewVerification = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      recordId,
+      reviewStatus,
+      reviewNotes,
+    }: {
+      recordId: string;
+      reviewStatus: 'approved' | 'rejected';
+      reviewNotes?: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const updateData: Record<string, any> = {
+        review_status: reviewStatus,
+        review_notes: reviewNotes || null,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: user?.id || null,
+      };
+
+      // If rejected, also update verification status to failed
+      if (reviewStatus === 'rejected') {
+        updateData.status = 'failed';
+      }
+
+      const { data, error } = await supabase
+        .from('verification_records')
+        .update(updateData)
+        .eq('id', recordId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employee'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    },
+  });
+};
+
+export const useCompanySettings = () => {
+  return useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (error) throw error;
+      return data as CompanySettings;
+    },
+  });
+};
+
+export const useUpdateCompanySettings = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      companyName,
+      defaultWindowStart,
+      defaultWindowEnd,
+      distanceThresholdKm,
+    }: {
+      id: string;
+      companyName: string;
+      defaultWindowStart: string;
+      defaultWindowEnd: string;
+      distanceThresholdKm?: number;
+    }) => {
+      const updateData: Record<string, any> = {
+        company_name: companyName,
+        default_window_start: defaultWindowStart,
+        default_window_end: defaultWindowEnd,
+      };
+      
+      if (distanceThresholdKm !== undefined) {
+        updateData.distance_threshold_km = distanceThresholdKm;
+      }
+
+      const { data, error } = await supabase
+        .from('company_settings')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['company-settings'] });
+    },
+  });
+};
+
+export const useDashboardStats = () => {
+  return useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+      const { data: employees, error: empError } = await supabase
+        .from('employees')
+        .select('id, invite_status');
+
+      if (empError) throw empError;
+
+      const { data: records, error: recError } = await supabase
+        .from('verification_records')
+        .select('status');
+
+      if (recError) throw recError;
+
+      const totalEmployees = employees?.length || 0;
+      const invited = employees?.filter(e => e.invite_status === 'invited').length || 0;
+      const verified = records?.filter(r => r.status === 'verified').length || 0;
+      const pending = records?.filter(r => r.status === 'pending_verification' || r.status === 'pending_address').length || 0;
+      const failed = records?.filter(r => r.status === 'failed').length || 0;
+      const reverificationRequired = records?.filter(r => r.status === 'reverification_required').length || 0;
+
+      return {
+        totalEmployees,
+        invited,
+        verified,
+        pending,
+        failed,
+        reverificationRequired,
+      };
     },
   });
 };

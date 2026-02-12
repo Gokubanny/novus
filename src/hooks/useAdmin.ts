@@ -111,6 +111,51 @@ export const useRequestReverification = () => {
   });
 };
 
+export const useReviewVerification = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      recordId,
+      reviewStatus,
+      reviewNotes,
+    }: {
+      recordId: string;
+      reviewStatus: 'approved' | 'rejected';
+      reviewNotes?: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const updateData: Record<string, any> = {
+        review_status: reviewStatus,
+        review_notes: reviewNotes || null,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: user?.id || null,
+      };
+
+      // If rejected, also update verification status to failed
+      if (reviewStatus === 'rejected') {
+        updateData.status = 'failed';
+      }
+
+      const { data, error } = await supabase
+        .from('verification_records')
+        .update(updateData)
+        .eq('id', recordId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employee'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    },
+  });
+};
+
 export const useCompanySettings = () => {
   return useQuery({
     queryKey: ['company-settings'],

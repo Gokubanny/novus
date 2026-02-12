@@ -16,9 +16,11 @@ import {
   AlertTriangle,
   Eye,
   MapPin,
-  AlertCircle
+  AlertCircle,
+  Filter
 } from 'lucide-react';
 import { useAllEmployees, useCompanySettings } from '@/hooks/useAdmin';
+import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { formatDistance } from '@/lib/geocoding';
@@ -44,14 +46,20 @@ const getStatusBadge = (status: string) => {
 const VerificationReview = () => {
   const { data: employees, isLoading } = useAllEmployees();
   const { data: settings } = useCompanySettings();
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
   const distanceThreshold = (settings as any)?.distance_threshold_km ?? 1.0;
   // Filter to only show employees with verification records
   const employeesWithVerification = employees?.filter(
     emp => emp.invite_status === 'accepted' && emp.verification_records?.length > 0
   ) || [];
 
+  // Apply distance-flagged filter
+  const filteredEmployees = showFlaggedOnly
+    ? employeesWithVerification.filter(e => (e.verification_records?.[0] as any)?.distance_flagged === true)
+    : employeesWithVerification;
+
   // Sort by verification status (needs attention first)
-  const sortedEmployees = [...employeesWithVerification].sort((a, b) => {
+  const sortedEmployees = [...filteredEmployees].sort((a, b) => {
     const statusOrder = {
       'reverification_required': 0,
       'failed': 1,
@@ -144,8 +152,17 @@ const VerificationReview = () => {
 
       {/* Verification Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>All Verifications</CardTitle>
+          <Button
+            variant={showFlaggedOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowFlaggedOnly(!showFlaggedOnly)}
+            className="gap-1"
+          >
+            <Filter className="h-4 w-4" />
+            {showFlaggedOnly ? "Showing Flagged" : "Show Flagged Only"}
+          </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (

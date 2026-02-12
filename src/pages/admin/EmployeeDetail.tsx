@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   ArrowLeft, 
   Copy, 
@@ -16,9 +18,11 @@ import {
   RefreshCw,
   Loader2,
   AlertCircle,
-  Map
+  Map,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
-import { useEmployeeById, useRequestReverification, useCompanySettings } from '@/hooks/useAdmin';
+import { useEmployeeById, useRequestReverification, useCompanySettings, useReviewVerification } from '@/hooks/useAdmin';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -52,9 +56,37 @@ const EmployeeDetail = () => {
   const { data: employee, isLoading } = useEmployeeById(id);
   const { data: settings } = useCompanySettings();
   const requestReverification = useRequestReverification();
+  const reviewVerification = useReviewVerification();
+  const [reviewNotes, setReviewNotes] = useState('');
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   const latestVerification = employee?.verification_records?.[0] as any;
   const distanceThreshold = (settings as any)?.distance_threshold_km ?? 1.0;
+
+  const handleReview = async (status: 'approved' | 'rejected') => {
+    if (!latestVerification) return;
+    try {
+      await reviewVerification.mutateAsync({
+        recordId: latestVerification.id,
+        reviewStatus: status,
+        reviewNotes: reviewNotes.trim() || undefined,
+      });
+      toast({
+        title: status === 'approved' ? 'Verification Approved' : 'Verification Rejected',
+        description: status === 'approved' 
+          ? 'The verification has been approved.' 
+          : 'The verification has been rejected and marked as failed.',
+      });
+      setReviewNotes('');
+      setShowReviewForm(false);
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to review verification',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const copyInviteLink = () => {
     if (employee) {
@@ -267,8 +299,85 @@ const EmployeeDetail = () => {
               </div>
             )}
 
-            {/* Actions */}
-            {latestVerification.status === 'verified' && (
+            {/* Review Status Display */}
+            {latestVerification.review_status && latestVerification.review_status !== 'pending' && (
+              <div className={`p-4 rounded-lg ${latestVerification.review_status === 'approved' ? 'bg-success/10 border border-success/20' : 'bg-destructive/10 border border-destructive/20'}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  {latestVerification.review_status === 'approved' ? (
+                    <><ThumbsUp className="h-4 w-4 text-success" /><span className="font-semibold text-success">Admin Approved</span></>
+                  ) : (
+                    <><ThumbsDown className="h-4 w-4 text-destructive" /><span className="font-semibold text-destructive">Admin Rejected</span></>
+                  )}
+                </div>
+                {latestVerification.review_notes && (
+                  <p className="text-sm text-muted-foreground mt-1">Notes: {latestVerification.review_notes}</p>
+                )}
+                {latestVerification.reviewed_at && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Reviewed {format(new Date(latestVerification.reviewed_at), 'MMM d, yyyy h:mm a')}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Review Actions */}
+            {latestVerification.verified_at && (!latestVerification.review_status || latestVerification.review_status === 'pending') && (
+              <div className="pt-4 space-y-3">
+                {!showReviewForm ? (
+                  <div className="flex gap-2">
+                    <Button onClick={() => { setShowReviewForm(true); }} variant="outline" className="gap-1">
+                      <ThumbsUp className="h-4 w-4" /> Approve / Reject
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleRequestReverification}
+                      disabled={requestReverification.isPending}
+                    >
+                      {requestReverification.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Request Re-verification
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 border rounded-lg p-4">
+                    <Textarea
+                      placeholder="Add review notes (optional)..."
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      rows={3}
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => handleReview('approved')}
+                        disabled={reviewVerification.isPending}
+                        className="gap-1 bg-success hover:bg-success/90"
+                      >
+                        {reviewVerification.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
+                        Approve
+                      </Button>
+                      <Button 
+                        variant="destructive"
+                        onClick={() => handleReview('rejected')}
+                        disabled={reviewVerification.isPending}
+                        className="gap-1"
+                      >
+                        {reviewVerification.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsDown className="h-4 w-4" />}
+                        Reject
+                      </Button>
+                      <Button variant="ghost" onClick={() => { setShowReviewForm(false); setReviewNotes(''); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Actions for already reviewed */}
+            {latestVerification.status === 'verified' && latestVerification.review_status && latestVerification.review_status !== 'pending' && (
               <div className="pt-4">
                 <Button
                   variant="outline"
