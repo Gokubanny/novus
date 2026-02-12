@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Night Address Verification System - Enterprise HR Design System */
+/* All colors MUST be HSL */
+
+@layer base {
+  :root {
+    /* Primary - Deep Trust Blue */
+    --primary: 210 50% 25%;
+    --primary-foreground: 210 40% 98%;
+    
+    /* Background & Foreground */
+    --background: 210 20% 98%;
+    --foreground: 210 50% 10%;
+
+    /* Card styling */
+    --card: 0 0% 100%;
+    --card-foreground: 210 50% 10%;
+
+    /* Popover styling */
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 50% 10%;
+
+    /* Secondary - Slate Gray */
+    --secondary: 215 20% 94%;
+    --secondary-foreground: 210 50% 20%;
+
+    /* Muted styling */
+    --muted: 215 20% 94%;
+    --muted-foreground: 215 15% 45%;
+
+    /* Accent - Teal/Green for success */
+    --accent: 173 58% 39%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive - Warning Red */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warning - Amber */
+    --warning: 45 93% 47%;
+    --warning-foreground: 0 0% 10%;
+
+    /* Success - Teal */
+    --success: 173 58% 39%;
+    --success-foreground: 0 0% 100%;
+
+    /* Info - Blue */
+    --info: 210 100% 50%;
+    --info-foreground: 0 0% 100%;
+
+    /* Border and Input */
+    --border: 215 25% 88%;
+    --input: 215 25% 88%;
+    --ring: 210 50% 25%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar - Deep slate */
+    --sidebar-background: 210 50% 15%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 173 58% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 45% 22%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 210 40% 25%;
+    --sidebar-ring: 173 58% 45%;
+
+    /* Chart colors */
+    --chart-1: 210 50% 25%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 45 93% 47%;
+    --chart-4: 215 20% 65%;
+    --chart-5: 0 72% 51%;
+  }
+
+  .dark {
+    /* Primary - Lighter blue for dark mode */
+    --primary: 210 60% 60%;
+    --primary-foreground: 210 50% 10%;
+    
+    /* Background & Foreground */
+    --background: 210 50% 8%;
+    --foreground: 210 20% 95%;
+
+    /* Card styling */
+    --card: 210 45% 12%;
+    --card-foreground: 210 20% 95%;
+
+    /* Popover styling */
+    --popover: 210 45% 12%;
+    --popover-foreground: 210 20% 95%;
+
+    /* Secondary */
+    --secondary: 210 40% 18%;
+    --secondary-foreground: 210 20% 90%;
+
+    /* Muted */
+    --muted: 210 40% 18%;
+    --muted-foreground: 215 15% 60%;
+
+    /* Accent */
+    --accent: 173 58% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Warning */
+    --warning: 45 93% 47%;
+    --warning-foreground: 0 0% 10%;
+
+    /* Success */
+    --success: 173 58% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Border and Input */
+    --border: 210 40% 22%;
+    --input: 210 40% 22%;
+    --ring: 210 60% 60%;
+
+    /* Sidebar */
+    --sidebar-background: 210 50% 6%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 173 58% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 45% 15%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 210 40% 18%;
+    --sidebar-ring: 173 58% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@layer utilities {
+  /* Hover effect for cards */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+  }
+
+  /* Status badge base */
+  .status-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  /* Gradient backgrounds */
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(210 50% 25%) 0%, hsl(210 50% 35%) 100%);
+  }
+
+  .gradient-hero {
+    background: linear-gradient(180deg, hsl(210 20% 98%) 0%, hsl(210 25% 95%) 100%);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
