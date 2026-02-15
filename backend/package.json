@@ -4,28 +4,35 @@
     "description": "Enterprise HR Address Verification Backend",
     "main": "src/server.js",
     "scripts": {
-      "start": "node src/server.js",
-      "dev": "nodemon src/server.js",
-      "seed-admin": "node src/scripts/seedAdmin.js"
+        "start": "node src/server.js",
+        "dev": "nodemon src/server.js",
+        "seed-admin": "node src/scripts/seedAdmin.js"
     },
-    "keywords": ["hr", "verification", "address", "express", "mongodb"],
+    "keywords": [
+        "hr",
+        "verification",
+        "address",
+        "express",
+        "mongodb"
+    ],
     "author": "",
     "license": "ISC",
     "dependencies": {
-      "express": "^4.18.2",
-      "mongoose": "^8.0.0",
-      "bcryptjs": "^2.4.3",
-      "jsonwebtoken": "^9.0.2",
-      "dotenv": "^16.3.1",
-      "cors": "^2.8.5",
-      "helmet": "^7.1.0",
-      "express-rate-limit": "^7.1.5",
-      "express-mongo-sanitize": "^2.2.0",
-      "express-validator": "^7.0.1",
-      "crypto": "^1.0.1",
-      "axios": "^1.6.2"
+        "axios": "^1.6.2",
+        "bcryptjs": "^2.4.3",
+        "cors": "^2.8.5",
+        "crypto": "^1.0.1",
+        "dotenv": "^16.3.1",
+        "express": "^4.18.2",
+        "express-mongo-sanitize": "^2.2.0",
+        "express-rate-limit": "^7.1.5",
+        "express-validator": "^7.0.1",
+        "helmet": "^7.1.0",
+        "jsonwebtoken": "^9.0.2",
+        "mongodb": "^7.1.0",
+        "mongoose": "^8.0.0"
     },
     "devDependencies": {
-      "nodemon": "^3.0.2"
+        "nodemon": "^3.0.2"
     }
-  }
+}
