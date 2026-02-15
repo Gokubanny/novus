@@ -46,8 +46,7 @@ const employeeProfileSchema = new mongoose.Schema({
 
 // Indexes
 employeeProfileSchema.index({ userId: 1 });
-employeeProfileSchema.index({ email: 1 });
-employeeProfileSchema.index({ inviteToken: 1 });
+// employeeProfileSchema.index({ email: 1 });
 employeeProfileSchema.index({ status: 1 });
 
 // Virtual for getting verification records
