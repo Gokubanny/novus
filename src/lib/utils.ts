@@ -6,4 +6,4 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://novus-vy80.onrender.com/api';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://novus-backend-jqax.onrender.com/api';
