@@ -7,25 +7,41 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   adminService,
   CreateEmployeeRequest,
-  EmployeeData,
   ReviewVerificationRequest,
-  DashboardStats,
-  CompanySettings,
   UpdateSettingsRequest,
 } from '@/services/adminService';
 
 export const useAllEmployees = () => {
   return useQuery({
     queryKey: ['admin', 'employees'],
-    queryFn: () => adminService.getAllEmployees(),
+    queryFn: async () => {
+      try {
+        const data = await adminService.getAllEmployees();
+        return data || [];
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        return [];
+      }
+    },
+    initialData: [],
   });
 };
 
 export const useEmployeeById = (employeeId: string | undefined) => {
   return useQuery({
     queryKey: ['admin', 'employee', employeeId],
-    queryFn: () => adminService.getEmployeeById(employeeId!),
+    queryFn: async () => {
+      if (!employeeId) return null;
+      try {
+        const data = await adminService.getEmployeeById(employeeId);
+        return data || null;
+      } catch (error) {
+        console.error('Error fetching employee:', error);
+        return null;
+      }
+    },
     enabled: !!employeeId,
+    initialData: null,
   });
 };
 
@@ -76,14 +92,53 @@ export const useReviewVerification = () => {
 export const useDashboardStats = () => {
   return useQuery({
     queryKey: ['admin', 'dashboard', 'stats'],
-    queryFn: () => adminService.getDashboardStats(),
+    queryFn: async () => {
+      try {
+        const data = await adminService.getDashboardStats();
+        return data || {
+          totalEmployees: 0,
+          invited: 0,
+          verified: 0,
+          pending: 0,
+          failed: 0,
+          reverificationRequired: 0
+        };
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+        return {
+          totalEmployees: 0,
+          invited: 0,
+          verified: 0,
+          pending: 0,
+          failed: 0,
+          reverificationRequired: 0
+        };
+      }
+    },
+    initialData: {
+      totalEmployees: 0,
+      invited: 0,
+      verified: 0,
+      pending: 0,
+      failed: 0,
+      reverificationRequired: 0
+    },
   });
 };
 
 export const useCompanySettings = () => {
   return useQuery({
     queryKey: ['admin', 'settings'],
-    queryFn: () => adminService.getSettings(),
+    queryFn: async () => {
+      try {
+        const data = await adminService.getSettings();
+        return data || null;
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+        return null;
+      }
+    },
+    initialData: null,
   });
 };
 

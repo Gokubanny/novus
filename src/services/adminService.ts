@@ -104,8 +104,8 @@ export class AdminService {
    * Get all employees with their verifications
    */
   async getAllEmployees(): Promise<EmployeeData[]> {
-    const response = await apiClient.get<EmployeeData[]>('/admin/employees');
-    return response;
+    // apiClient already returns data.data, so we just return the response directly
+    return apiClient.get<EmployeeData[]>('/admin/employees');
   }
 
   /**
@@ -119,7 +119,7 @@ export class AdminService {
    * Request re-verification for an employee
    */
   async requestReverification(verificationId: string): Promise<{ id: string; status: string }> {
-    return apiClient.post(`/admin/employees/${verificationId}/reverify`, {});
+    return apiClient.post<{ id: string; status: string }>(`/admin/employees/${verificationId}/reverify`, {});
   }
 
   /**
@@ -134,7 +134,12 @@ export class AdminService {
     reviewNotes?: string;
     reviewedAt: string;
   }> {
-    return apiClient.post(`/admin/verifications/${verificationId}/review`, data);
+    return apiClient.post<{
+      id: string;
+      reviewStatus: string;
+      reviewNotes?: string;
+      reviewedAt: string;
+    }>(`/admin/verifications/${verificationId}/review`, data);
   }
 
   /**

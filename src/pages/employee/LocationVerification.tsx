@@ -82,7 +82,6 @@ const LocationVerification = () => {
 
       // Submit verification with distance calculation
       const result = await verifyLocation.mutateAsync({
-        recordId: verification.id,
         latitude,
         longitude,
         distanceThresholdKm: distanceThreshold,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,17 @@ const AuthPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   const redirectAfterLogin = searchParams.get('redirect') || null;
+
+  // Handle redirect based on role - MOVED TO USEEFFECT
+  useEffect(() => {
+    if (!authLoading && userRole) {
+      if (userRole === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (userRole === 'employee') {
+        navigate('/employee', { replace: true });
+      }
+    }
+  }, [authLoading, userRole, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,29 +66,12 @@ const AuthPage = () => {
         return;
       }
 
-      // Wait a moment for role to be fetched
-      setTimeout(() => {
-        if (redirectAfterLogin) {
-          navigate(redirectAfterLogin);
-        }
-        // Role-based redirect will be handled by the useEffect
-      }, 500);
+      // No need for setTimeout - useEffect will handle redirect
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       setLoading(false);
     }
   };
-
-  // Redirect based on role when auth state changes
-  if (!authLoading && userRole) {
-    if (userRole === 'admin') {
-      navigate('/admin');
-      return null;
-    } else if (userRole === 'employee') {
-      navigate('/employee');
-      return null;
-    }
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 gradient-hero">

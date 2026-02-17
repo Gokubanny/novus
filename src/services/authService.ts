@@ -34,8 +34,18 @@ export interface InviteDetails {
   status: string;
 }
 
-export interface AcceptInviteRequest {
-  password: string;
+export interface AcceptInviteResponse {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    role: string;
+  };
+  employee: {
+    id: string;
+    fullName: string;
+    status: string;
+  };
 }
 
 export class AuthService {
@@ -81,8 +91,8 @@ export class AuthService {
   /**
    * Accept invite and create account
    */
-  async acceptInvite(token: string, password: string): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(
+  async acceptInvite(token: string, password: string): Promise<AcceptInviteResponse> {
+    const response = await apiClient.post<AcceptInviteResponse>(
       `/invite/${token}/accept`,
       { password }
     );
@@ -111,4 +121,4 @@ export class AuthService {
 }
 
 // Export singleton instance
-export const authService = new AuthService(); 
+export const authService = new AuthService();

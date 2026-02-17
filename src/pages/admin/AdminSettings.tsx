@@ -24,7 +24,7 @@ const AdminSettings = () => {
       setCompanyName(settings.company_name);
       setWindowStart(settings.default_window_start);
       setWindowEnd(settings.default_window_end);
-      setDistanceThreshold(((settings as any).distance_threshold_km ?? 1.0).toString());
+      setDistanceThreshold((settings.distance_threshold_km ?? 1.0).toString());
     }
   }, [settings]);
 

@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { apiClient } from '@/services/apiClient';
 
 interface GeocodeResult {
   latitude: number | null;
@@ -14,16 +14,9 @@ export async function geocodeAddress(
   zip: string
 ): Promise<GeocodeResult> {
   try {
-    const { data, error } = await supabase.functions.invoke('geocode-address', {
-      body: { street, city, state, zip },
-    });
-
-    if (error) {
-      console.error('Geocoding error:', error);
-      return { latitude: null, longitude: null, display_name: null, error: error.message };
-    }
-
-    return data as GeocodeResult;
+    // This would need a backend endpoint for geocoding
+    // For now, we'll let the backend handle geocoding
+    return { latitude: null, longitude: null, display_name: null };
   } catch (err: any) {
     console.error('Geocoding error:', err);
     return { latitude: null, longitude: null, display_name: null, error: err.message };

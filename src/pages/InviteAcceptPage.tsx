@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { authService } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,7 +24,7 @@ const InviteAcceptPage = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 
-  const [employee, setEmployee] = useState<{ id: string; full_name: string; email: string } | null>(null);
+  const [employee, setEmployee] = useState<{ id: string; fullName: string; email: string } | null>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -34,7 +34,7 @@ const InviteAcceptPage = () => {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    const fetchEmployee = async () => {
+    const fetchInviteDetails = async () => {
       if (!token) {
         setError('No invite token provided');
         setLoading(false);
@@ -42,33 +42,20 @@ const InviteAcceptPage = () => {
       }
 
       try {
-        const { data, error: fetchError } = await supabase
-          .from('employees')
-          .select('id, full_name, email, invite_status')
-          .eq('invite_token', token)
-          .single();
-
-        if (fetchError || !data) {
-          setError('Invalid or expired invite link');
-          setLoading(false);
-          return;
-        }
-
-        if (data.invite_status === 'accepted') {
-          setError('This invite has already been accepted. Please sign in instead.');
-          setLoading(false);
-          return;
-        }
-
-        setEmployee({ id: data.id, full_name: data.full_name, email: data.email });
+        const details = await authService.getInviteDetails(token);
+        setEmployee({
+          id: details.id,
+          fullName: details.fullName,
+          email: details.email
+        });
         setLoading(false);
-      } catch (err) {
-        setError('Failed to validate invite');
+      } catch (err: any) {
+        setError(err.message || 'Invalid or expired invite link');
         setLoading(false);
       }
     };
 
-    fetchEmployee();
+    fetchInviteDetails();
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,66 +69,13 @@ const InviteAcceptPage = () => {
       return;
     }
 
-    if (!employee) return;
+    if (!token) return;
 
     setSubmitting(true);
 
     try {
-      // 1. Create the user account
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: employee.email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/employee`,
-          data: {
-            full_name: employee.full_name,
-          },
-        },
-      });
-
-      if (signUpError) {
-        if (signUpError.message.includes('already registered')) {
-          setError('An account with this email already exists. Please sign in instead.');
-        } else {
-          setError(signUpError.message);
-        }
-        setSubmitting(false);
-        return;
-      }
-
-      if (!authData.user) {
-        setError('Failed to create account');
-        setSubmitting(false);
-        return;
-      }
-
-      // 2. Update employee record with user_id and status
-      const { error: updateError } = await supabase
-        .from('employees')
-        .update({
-          user_id: authData.user.id,
-          invite_status: 'accepted',
-        })
-        .eq('id', employee.id);
-
-      if (updateError) {
-        console.error('Error updating employee:', updateError);
-        // Continue anyway - the user is created
-      }
-
-      // 3. Add employee role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: 'employee',
-        });
-
-      if (roleError) {
-        console.error('Error adding role:', roleError);
-        // Continue anyway
-      }
-
+      const response = await authService.acceptInvite(token, password);
+      
       setSuccess(true);
       
       // Redirect after success
@@ -149,8 +83,8 @@ const InviteAcceptPage = () => {
         navigate('/employee');
       }, 2000);
 
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to accept invite');
       setSubmitting(false);
     }
   };
@@ -210,7 +144,7 @@ const InviteAcceptPage = () => {
           <Link to="/" className="flex items-center justify-center gap-2 mb-4">
             <Shield className="h-10 w-10 text-primary" />
           </Link>
-          <CardTitle className="text-2xl">Welcome, {employee?.full_name}!</CardTitle>
+          <CardTitle className="text-2xl">Welcome, {employee?.fullName}!</CardTitle>
           <CardDescription>
             Complete your account setup to get started with address verification
           </CardDescription>

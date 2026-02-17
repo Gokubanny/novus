@@ -85,10 +85,12 @@ export class EmployeeService {
    * Get current verification status
    */
   async getVerificationStatus(): Promise<EmployeeVerificationStatus | null> {
-    const response = await apiClient.get<EmployeeVerificationStatus | null>(
-      '/employee/verification-status'
-    );
-    return response;
+    try {
+      return await apiClient.get<EmployeeVerificationStatus | null>('/employee/verification-status');
+    } catch (error) {
+      console.error('Error fetching verification status:', error);
+      return null;
+    }
   }
 
   /**
@@ -109,7 +111,12 @@ export class EmployeeService {
    * Get verification history
    */
   async getVerificationHistory(): Promise<VerificationHistoryItem[]> {
-    return apiClient.get<VerificationHistoryItem[]>('/employee/history');
+    try {
+      return await apiClient.get<VerificationHistoryItem[]>('/employee/history');
+    } catch (error) {
+      console.error('Error fetching verification history:', error);
+      return [];
+    }
   }
 }
 
