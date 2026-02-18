@@ -32,9 +32,9 @@ export const PublicHeader = () => {
             <Button variant="outline" asChild>
               <Link to="/auth">Sign In</Link>
             </Button>
-            <Button asChild>
+            {/* <Button asChild>
               <Link to="/demo">Request Demo</Link>
-            </Button>
+            </Button> */}
           </div>
         </nav>
 
@@ -73,9 +73,9 @@ export const PublicHeader = () => {
               <Button variant="outline" asChild>
                 <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
               </Button>
-              <Button asChild>
+              {/* <Button asChild>
                 <Link to="/demo" onClick={() => setMobileMenuOpen(false)}>Request Demo</Link>
-              </Button>
+              </Button> */}
             </div>
           </nav>
         </div>

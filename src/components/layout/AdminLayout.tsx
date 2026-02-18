@@ -42,7 +42,7 @@ export const AdminLayout = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-background fixed">
       {/* Desktop Sidebar */}
       <aside 
         className={cn(
