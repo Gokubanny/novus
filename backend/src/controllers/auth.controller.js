@@ -25,24 +25,23 @@ const login = asyncHandler(async (req, res) => {
 
   const { email, password } = req.body;
 
-  // Find user by email (admin or employee account)
-  const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+  // ── FIX: field is `passwordHash`, not `password` ─────────────────────────
+  // User model stores password in `passwordHash` with select: false.
+  const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash');
 
   if (!user) {
     throw new AppError('Invalid email or password', 401);
   }
 
-  // Compare password using the instance method on User model
   const isMatch = await user.comparePassword(password);
 
   if (!isMatch) {
     throw new AppError('Invalid email or password', 401);
   }
 
-  // Generate JWT
+  // ── FIX: role is stored uppercase ('ADMIN' / 'EMPLOYEE') ─────────────────
   const token = generateToken({ userId: user._id, role: user.role });
 
-  // Log the login event
   await AuditLog.create({
     actorId:    user._id,
     actionType: 'LOGIN',
@@ -52,9 +51,8 @@ const login = asyncHandler(async (req, res) => {
     }
   });
 
-  // If this is an employee, attach their profile status
   let employeeStatus = null;
-  if (user.role === 'employee') {
+  if (user.role === 'EMPLOYEE') {
     const profile = await EmployeeProfile.findOne({ userId: user._id }).lean();
     if (profile) {
       employeeStatus = profile.status;
@@ -69,7 +67,7 @@ const login = asyncHandler(async (req, res) => {
       user: {
         id:              user._id,
         email:           user.email,
-        role:            user.role,
+        role:            user.role.toLowerCase(), // send lowercase to frontend
         employee_status: employeeStatus
       }
     }
@@ -107,7 +105,7 @@ const getMe = asyncHandler(async (req, res) => {
   }
 
   let employeeProfile = null;
-  if (user.role === 'employee') {
+  if (user.role === 'EMPLOYEE') {
     employeeProfile = await EmployeeProfile.findOne({ userId: user._id }).lean();
   }
 
@@ -116,7 +114,7 @@ const getMe = asyncHandler(async (req, res) => {
     data: {
       id:    user._id,
       email: user.email,
-      role:  user.role,
+      role:  user.role.toLowerCase(),
       ...(employeeProfile && {
         employee: {
           id:         employeeProfile._id,

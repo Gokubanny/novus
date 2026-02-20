@@ -56,7 +56,7 @@ function toRad(deg: number): number {
  * Format distance for display
  */
 export function formatDistance(distanceKm: number | null): string {
-  if (distanceKm === null) return 'Unknown';
+  if (distanceKm == null) return 'Unknown';
   if (distanceKm < 1) {
     return `${Math.round(distanceKm * 1000)}m`;
   }
