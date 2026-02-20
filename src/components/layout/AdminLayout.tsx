@@ -53,7 +53,7 @@ export const AdminLayout = () => {
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
           {sidebarOpen && (
-            <Link to="/admin" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2">
               <Shield className="h-8 w-8 text-sidebar-primary" />
               <span className="font-semibold text-lg text-sidebar-foreground">NovusGuard</span>
             </Link>

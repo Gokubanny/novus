@@ -16,6 +16,7 @@ const inviteRoutes = require('./routes/invite.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const { validateCloudinaryConfig } = require('./config/cloudinary');
 
 // ============== CRITICAL FIX FOR RENDER ==============
 // Trust proxy - Required for rate limiter to work behind Render's proxy
@@ -126,6 +127,7 @@ const startServer = async () => {
   }
 };
 
+validateCloudinaryConfig();
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('✗ Unhandled Rejection:', err);

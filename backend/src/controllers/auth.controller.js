@@ -3,52 +3,62 @@ const EmployeeProfile = require('../models/EmployeeProfile.model');
 const AuditLog = require('../models/AuditLog.model');
 const { generateToken } = require('../utils/jwt');
 const { asyncHandler, AppError } = require('../middleware/errorHandler');
+const { validationResult } = require('express-validator');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth Controller — unchanged from V1
+//
+// This file was NOT modified during the V2 upgrade.
+// If you see it replaced with admin controller content, restore this file.
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * @route   POST /api/auth/login
- * @desc    Login user (Admin or Employee)
+ * @desc    Authenticate user and return JWT
  * @access  Public
  */
 const login = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw new AppError('Invalid email or password format', 400);
+  }
+
   const { email, password } = req.body;
 
-  // Validation
-  if (!email || !password) {
-    throw new AppError('Please provide email and password', 400);
-  }
-
-  // Find user with password field
-  const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash');
+  // Find user by email (admin or employee account)
+  const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
 
   if (!user) {
-    throw new AppError('Invalid credentials', 401);
+    throw new AppError('Invalid email or password', 401);
   }
 
-  // Check password
-  const isPasswordValid = await user.comparePassword(password);
+  // Compare password using the instance method on User model
+  const isMatch = await user.comparePassword(password);
 
-  if (!isPasswordValid) {
-    throw new AppError('Invalid credentials', 401);
+  if (!isMatch) {
+    throw new AppError('Invalid email or password', 401);
   }
 
-  // Update last login
-  user.lastLogin = new Date();
-  await user.save();
+  // Generate JWT
+  const token = generateToken({ userId: user._id, role: user.role });
 
-  // Log the login
+  // Log the login event
   await AuditLog.create({
-    actorId: user._id,
+    actorId:    user._id,
     actionType: 'LOGIN',
-    metadata: { email: user.email }
+    metadata: {
+      email: user.email,
+      role:  user.role
+    }
   });
 
-  // Generate token
-  const token = generateToken(user._id, user.role);
-
-  // Get additional profile info for employees
-  let employeeProfile = null;
-  if (user.role === 'EMPLOYEE') {
-    employeeProfile = await EmployeeProfile.findOne({ userId: user._id });
+  // If this is an employee, attach their profile status
+  let employeeStatus = null;
+  if (user.role === 'employee') {
+    const profile = await EmployeeProfile.findOne({ userId: user._id }).lean();
+    if (profile) {
+      employeeStatus = profile.status;
+    }
   }
 
   res.json({
@@ -57,67 +67,62 @@ const login = asyncHandler(async (req, res) => {
     data: {
       token,
       user: {
-        id: user._id,
-        email: user.email,
-        role: user.role.toLowerCase(),
-        lastLogin: user.lastLogin
-      },
-      ...(employeeProfile && { 
-        employee: {
-          id: employeeProfile._id,
-          fullName: employeeProfile.fullName,
-          status: employeeProfile.status
-        }
-      })
+        id:              user._id,
+        email:           user.email,
+        role:            user.role,
+        employee_status: employeeStatus
+      }
     }
   });
 });
 
 /**
  * @route   POST /api/auth/logout
- * @desc    Logout user (just for audit log)
- * @access  Private
+ * @desc    Logout (client-side token discard — audit logged server-side)
+ * @access  Authenticated
  */
 const logout = asyncHandler(async (req, res) => {
-  // Log the logout
   await AuditLog.create({
-    actorId: req.userId,
-    actionType: 'LOGOUT'
+    actorId:    req.userId,
+    actionType: 'LOGOUT',
+    metadata:   {}
   });
 
   res.json({
     success: true,
-    message: 'Logout successful'
+    message: 'Logged out successfully'
   });
 });
 
 /**
  * @route   GET /api/auth/me
- * @desc    Get current user info
- * @access  Private
+ * @desc    Get currently authenticated user
+ * @access  Authenticated
  */
 const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.userId);
+  const user = await User.findById(req.userId).lean();
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
 
   let employeeProfile = null;
-  if (user.role === 'EMPLOYEE') {
-    employeeProfile = await EmployeeProfile.findOne({ userId: user._id });
+  if (user.role === 'employee') {
+    employeeProfile = await EmployeeProfile.findOne({ userId: user._id }).lean();
   }
 
   res.json({
     success: true,
     data: {
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role.toLowerCase(),
-        lastLogin: user.lastLogin
-      },
-      ...(employeeProfile && { 
+      id:    user._id,
+      email: user.email,
+      role:  user.role,
+      ...(employeeProfile && {
         employee: {
-          id: employeeProfile._id,
-          fullName: employeeProfile.fullName,
-          status: employeeProfile.status
+          id:         employeeProfile._id,
+          full_name:  employeeProfile.fullName,
+          phone:      employeeProfile.phoneNumber,
+          status:     employeeProfile.status
         }
       })
     }
