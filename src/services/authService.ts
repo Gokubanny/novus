@@ -1,6 +1,6 @@
 /**
  * Authentication Service
- * Handles login, logout, and user session management
+ * Token lives in memory only — no localStorage.
  */
 
 import { apiClient } from './apiClient';
@@ -49,76 +49,50 @@ export interface AcceptInviteResponse {
 }
 
 export class AuthService {
-  /**
-   * Login with email and password
-   */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
-    
-    // Store token
     if (response.token) {
       apiClient.setToken(response.token);
     }
-    
     return response;
   }
 
-  /**
-   * Logout user
-   */
   async logout(): Promise<void> {
     try {
       await apiClient.post('/auth/logout', {});
     } finally {
-      apiClient.setToken(null);
+      apiClient.clearToken();
+      // Wipe any legacy token left over from before this change
+      localStorage.removeItem('authToken');
     }
   }
 
-  /**
-   * Get current logged-in user
-   */
   async getCurrentUser(): Promise<AuthResponse> {
     return apiClient.get<AuthResponse>('/auth/me');
   }
 
-  /**
-   * Get invite details by token
-   */
   async getInviteDetails(token: string): Promise<InviteDetails> {
     return apiClient.get<InviteDetails>(`/invite/${token}`);
   }
 
-  /**
-   * Accept invite and create account
-   */
   async acceptInvite(token: string, password: string): Promise<AcceptInviteResponse> {
     const response = await apiClient.post<AcceptInviteResponse>(
       `/invite/${token}/accept`,
       { password }
     );
-    
-    // Store token
     if (response.token) {
       apiClient.setToken(response.token);
     }
-    
     return response;
   }
 
-  /**
-   * Check if user is authenticated
-   */
   isAuthenticated(): boolean {
     return !!apiClient.getToken();
   }
 
-  /**
-   * Get the current token
-   */
   getToken(): string | null {
     return apiClient.getToken();
   }
 }
 
-// Export singleton instance
 export const authService = new AuthService();
