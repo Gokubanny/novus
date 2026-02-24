@@ -35,18 +35,19 @@ export const AdminLayout = () => {
   };
 
   const isActive = (path: string, exact?: boolean) => {
-    if (exact) {
-      return location.pathname === path;
-    }
+    if (exact) return location.pathname === path;
     return location.pathname.startsWith(path);
   };
 
   return (
-    <div className="min-h-screen flex bg-background fixed">
+    // ── FIX: was `min-h-screen fixed` — fixed removes element from flow so
+    // h-full on children never resolves, breaking scroll. Use h-screen instead.
+    <div className="h-screen flex bg-background overflow-hidden">
+
       {/* Desktop Sidebar */}
       <aside 
         className={cn(
-          "hidden md:flex flex-col bg-sidebar border-r transition-all duration-300",
+          "hidden md:flex flex-col bg-sidebar border-r transition-all duration-300 shrink-0",
           sidebarOpen ? "w-64" : "w-20"
         )}
       >
@@ -153,10 +154,7 @@ export const AdminLayout = () => {
             <div className="border-t border-sidebar-border pt-4 mt-4">
               <Button
                 variant="ghost"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleSignOut();
-                }}
+                onClick={() => { setMobileMenuOpen(false); handleSignOut(); }}
                 className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
               >
                 <LogOut className="h-5 w-5" />
@@ -167,11 +165,9 @@ export const AdminLayout = () => {
         </div>
       )}
 
-      {/* Main Content */}
-      <main className="flex-1 md:pt-0 pt-16">
-        <div className="h-full overflow-auto">
-          <Outlet />
-        </div>
+      {/* Main Content — scrollable */}
+      <main className="flex-1 overflow-y-auto pt-16 md:pt-0">
+        <Outlet />
       </main>
     </div>
   );
