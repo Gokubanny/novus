@@ -5,13 +5,6 @@ const { generateToken } = require('../utils/jwt');
 const { asyncHandler, AppError } = require('../middleware/errorHandler');
 const { validationResult } = require('express-validator');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Auth Controller — unchanged from V1
-//
-// This file was NOT modified during the V2 upgrade.
-// If you see it replaced with admin controller content, restore this file.
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
  * @route   POST /api/auth/login
  * @desc    Authenticate user and return JWT
@@ -25,8 +18,6 @@ const login = asyncHandler(async (req, res) => {
 
   const { email, password } = req.body;
 
-  // ── FIX: field is `passwordHash`, not `password` ─────────────────────────
-  // User model stores password in `passwordHash` with select: false.
   const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash');
 
   if (!user) {
@@ -39,24 +30,23 @@ const login = asyncHandler(async (req, res) => {
     throw new AppError('Invalid email or password', 401);
   }
 
-  // ── FIX: role is stored uppercase ('ADMIN' / 'EMPLOYEE') ─────────────────
-  const token = generateToken({ userId: user._id, role: user.role });
+  // ── FIX: pass userId and role as separate arguments, NOT as an object ──────
+  // generateToken(userId, role) — jwt.js signature takes two separate params.
+  // Passing an object as the first arg wraps it inside the payload and causes
+  // auth.middleware.js to receive { userId: { userId, role } } which can't
+  // be cast to an ObjectId when doing User.findById(decoded.userId).
+  const token = generateToken(user._id, user.role);
 
   await AuditLog.create({
     actorId:    user._id,
     actionType: 'LOGIN',
-    metadata: {
-      email: user.email,
-      role:  user.role
-    }
+    metadata: { email: user.email, role: user.role }
   });
 
   let employeeStatus = null;
   if (user.role === 'EMPLOYEE') {
     const profile = await EmployeeProfile.findOne({ userId: user._id }).lean();
-    if (profile) {
-      employeeStatus = profile.status;
-    }
+    if (profile) employeeStatus = profile.status;
   }
 
   res.json({
@@ -67,7 +57,7 @@ const login = asyncHandler(async (req, res) => {
       user: {
         id:              user._id,
         email:           user.email,
-        role:            user.role.toLowerCase(), // send lowercase to frontend
+        role:            user.role.toLowerCase(),
         employee_status: employeeStatus
       }
     }
@@ -86,10 +76,7 @@ const logout = asyncHandler(async (req, res) => {
     metadata:   {}
   });
 
-  res.json({
-    success: true,
-    message: 'Logged out successfully'
-  });
+  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 /**
@@ -117,18 +104,14 @@ const getMe = asyncHandler(async (req, res) => {
       role:  user.role.toLowerCase(),
       ...(employeeProfile && {
         employee: {
-          id:         employeeProfile._id,
-          full_name:  employeeProfile.fullName,
-          phone:      employeeProfile.phoneNumber,
-          status:     employeeProfile.status
+          id:        employeeProfile._id,
+          full_name: employeeProfile.fullName,
+          phone:     employeeProfile.phoneNumber,
+          status:    employeeProfile.status
         }
       })
     }
   });
 });
 
-module.exports = {
-  login,
-  logout,
-  getMe
-};
+module.exports = { login, logout, getMe };
