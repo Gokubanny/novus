@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 
+// Generates a 9-character URL-safe alphanumeric token (A-Z a-z 0-9 - _).
+// base64url gives 64 possible chars per position → 64^9 ≈ 68 trillion combos,
+// more than enough uniqueness while keeping the invite link short.
+const generateInviteToken = () =>
+  crypto.randomBytes(9).toString('base64url').slice(0, 9);
+
 const employeeProfileSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -31,7 +37,7 @@ const employeeProfileSchema = new mongoose.Schema({
   inviteToken: {
     type: String,
     unique: true,
-    default: () => crypto.randomBytes(32).toString('hex')
+    default: generateInviteToken
   },
   inviteExpiresAt: {
     type: Date,
@@ -46,7 +52,6 @@ const employeeProfileSchema = new mongoose.Schema({
 
 // Indexes
 employeeProfileSchema.index({ userId: 1 });
-// employeeProfileSchema.index({ email: 1 });
 employeeProfileSchema.index({ status: 1 });
 
 // Virtual for getting verification records
@@ -56,7 +61,6 @@ employeeProfileSchema.virtual('verifications', {
   foreignField: 'employeeId'
 });
 
-// Ensure virtuals are included when converting to JSON
 employeeProfileSchema.set('toJSON', { virtuals: true });
 employeeProfileSchema.set('toObject', { virtuals: true });
 
