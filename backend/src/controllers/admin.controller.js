@@ -5,6 +5,85 @@ const CompanySettings = require('../models/CompanySettings.model');
 const AuditLog = require('../models/AuditLog.model');
 const { asyncHandler, AppError } = require('../middleware/errorHandler');
 
+// ── Helper: map a verification document to the admin API shape ────────────────
+// Includes all V1 fields + V2 sub-documents (addressDetails, propertyDetails,
+// occupancyDetails, images, internalFlag) so the admin UI can render the full
+// inspection without extra queries.
+const mapVerificationRecord = (v) => ({
+  id: v._id,
+  employee_id: v.employeeId,
+
+  // V1 flat fields (kept for legacy records)
+  street:   v.street,
+  city:     v.city,
+  state:    v.state,
+  zip:      v.zip,
+  landmark: v.landmark,
+
+  // V2 Section A — Address Details
+  address_details: v.addressDetails ? {
+    full_address: v.addressDetails.fullAddress,
+    landmark:     v.addressDetails.landmark,
+    city:         v.addressDetails.city,
+    lga:          v.addressDetails.lga,
+    state:        v.addressDetails.state,
+  } : null,
+
+  // V2 Section B — Property Details
+  property_details: v.propertyDetails ? {
+    building_type:    v.propertyDetails.buildingType,
+    building_purpose: v.propertyDetails.buildingPurpose,
+    building_status:  v.propertyDetails.buildingStatus,
+    building_colour:  v.propertyDetails.buildingColour,
+    has_fence:        v.propertyDetails.hasFence,
+    has_gate:         v.propertyDetails.hasGate,
+  } : null,
+
+  // V2 Section C — Occupancy Details
+  occupancy_details: v.occupancyDetails ? {
+    occupants:    v.occupancyDetails.occupants,
+    relationship: v.occupancyDetails.relationship,
+    notes:        v.occupancyDetails.notes,
+  } : null,
+
+  // V2 Section D — Images (Cloudinary URLs)
+  images: v.images ? {
+    front_view:        v.images.frontView,
+    gate_view:         v.images.gateView,
+    street_view:       v.images.streetView,
+    additional_images: v.images.additionalImages || [],
+  } : null,
+
+  // Verification window
+  verification_window_start: v.verificationWindowStart,
+  verification_window_end:   v.verificationWindowEnd,
+
+  // GPS / distance
+  status:       v.verificationStatus.toLowerCase(),
+  verified_at:  v.verifiedAt,
+  latitude:     v.locationCoordinates?.latitude,
+  longitude:    v.locationCoordinates?.longitude,
+  expected_latitude:  v.expectedLatitude,
+  expected_longitude: v.expectedLongitude,
+  distance_km:    v.distanceFromDeclaredAddress,
+  distance_flagged: v.distanceFlagged,
+
+  // V2 internal flag (admin-only)
+  internal_flag: v.internalFlag ? {
+    status: v.internalFlag.status,
+    reason: v.internalFlag.reason,
+  } : null,
+
+  // Admin review
+  review_status: v.reviewStatus?.toLowerCase(),
+  review_notes:  v.reviewNotes,
+  reviewed_at:   v.reviewedAt,
+  reviewed_by:   v.reviewedBy,
+
+  created_at: v.createdAt,
+  updated_at: v.updatedAt,
+});
+
 /**
  * @route   POST /api/admin/employees
  * @desc    Create new employee and generate invite
@@ -13,12 +92,10 @@ const { asyncHandler, AppError } = require('../middleware/errorHandler');
 const createEmployee = asyncHandler(async (req, res) => {
   const { fullName, email, phone } = req.body;
 
-  // Validation
   if (!fullName || !email) {
     throw new AppError('Full name and email are required', 400);
   }
 
-  // Check if employee already exists
   const existingEmployee = await EmployeeProfile.findOne({ 
     email: email.toLowerCase() 
   });
@@ -27,7 +104,6 @@ const createEmployee = asyncHandler(async (req, res) => {
     throw new AppError('An employee with this email already exists', 409);
   }
 
-  // Create employee profile
   const employee = await EmployeeProfile.create({
     fullName,
     email: email.toLowerCase(),
@@ -35,16 +111,11 @@ const createEmployee = asyncHandler(async (req, res) => {
     status: 'INVITED'
   });
 
-  // Log the action
   await AuditLog.create({
     actorId: req.userId,
     actionType: 'EMPLOYEE_CREATED',
     targetEmployeeId: employee._id,
-    metadata: {
-      fullName,
-      email,
-      inviteToken: employee.inviteToken
-    }
+    metadata: { fullName, email, inviteToken: employee.inviteToken }
   });
 
   res.status(201).json({
@@ -65,7 +136,6 @@ const createEmployee = asyncHandler(async (req, res) => {
 
 /**
  * @route   GET /api/admin/employees
- * @desc    Get all employees with their verification records
  * @access  Admin only
  */
 const getAllEmployees = asyncHandler(async (req, res) => {
@@ -73,7 +143,6 @@ const getAllEmployees = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  // Get verification records for all employees
   const employeeIds = employees.map(e => e._id);
   const verifications = await AddressVerification.find({
     employeeId: { $in: employeeIds }
@@ -81,7 +150,6 @@ const getAllEmployees = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  // Map verifications to employees
   const employeesWithVerifications = employees.map(employee => {
     const employeeVerifications = verifications.filter(
       v => v.employeeId.toString() === employee._id.toString()
@@ -97,43 +165,15 @@ const getAllEmployees = asyncHandler(async (req, res) => {
       user_id: employee.userId,
       created_at: employee.createdAt,
       updated_at: employee.updatedAt,
-      verification_records: employeeVerifications.map(v => ({
-        id: v._id,
-        employee_id: v.employeeId,
-        street: v.street,
-        city: v.city,
-        state: v.state,
-        zip: v.zip,
-        landmark: v.landmark,
-        verification_window_start: v.verificationWindowStart,
-        verification_window_end: v.verificationWindowEnd,
-        status: v.verificationStatus.toLowerCase().replace(/_/g, '_'),
-        verified_at: v.verifiedAt,
-        latitude: v.locationCoordinates?.latitude,
-        longitude: v.locationCoordinates?.longitude,
-        expected_latitude: v.expectedLatitude,
-        expected_longitude: v.expectedLongitude,
-        distance_km: v.distanceFromDeclaredAddress,
-        distance_flagged: v.distanceFlagged,
-        review_status: v.reviewStatus?.toLowerCase(),
-        review_notes: v.reviewNotes,
-        reviewed_at: v.reviewedAt,
-        reviewed_by: v.reviewedBy,
-        created_at: v.createdAt,
-        updated_at: v.updatedAt
-      }))
+      verification_records: employeeVerifications.map(mapVerificationRecord)
     };
   });
 
-  res.json({
-    success: true,
-    data: employeesWithVerifications
-  });
+  res.json({ success: true, data: employeesWithVerifications });
 });
 
 /**
  * @route   GET /api/admin/employees/:id
- * @desc    Get single employee by ID with verification details
  * @access  Admin only
  */
 const getEmployeeById = asyncHandler(async (req, res) => {
@@ -163,38 +203,13 @@ const getEmployeeById = asyncHandler(async (req, res) => {
       user_id: employee.userId,
       created_at: employee.createdAt,
       updated_at: employee.updatedAt,
-      verification_records: verifications.map(v => ({
-        id: v._id,
-        employee_id: v.employeeId,
-        street: v.street,
-        city: v.city,
-        state: v.state,
-        zip: v.zip,
-        landmark: v.landmark,
-        verification_window_start: v.verificationWindowStart,
-        verification_window_end: v.verificationWindowEnd,
-        status: v.verificationStatus.toLowerCase().replace(/_/g, '_'),
-        verified_at: v.verifiedAt,
-        latitude: v.locationCoordinates?.latitude,
-        longitude: v.locationCoordinates?.longitude,
-        expected_latitude: v.expectedLatitude,
-        expected_longitude: v.expectedLongitude,
-        distance_km: v.distanceFromDeclaredAddress,
-        distance_flagged: v.distanceFlagged,
-        review_status: v.reviewStatus?.toLowerCase(),
-        review_notes: v.reviewNotes,
-        reviewed_at: v.reviewedAt,
-        reviewed_by: v.reviewedBy,
-        created_at: v.createdAt,
-        updated_at: v.updatedAt
-      }))
+      verification_records: verifications.map(mapVerificationRecord)
     }
   });
 });
 
 /**
  * @route   POST /api/admin/employees/:id/reverify
- * @desc    Request re-verification for an employee
  * @access  Admin only
  */
 const requestReverification = asyncHandler(async (req, res) => {
@@ -206,7 +221,6 @@ const requestReverification = asyncHandler(async (req, res) => {
     throw new AppError('Verification record not found', 404);
   }
 
-  // Update verification status
   verification.verificationStatus = 'REVERIFICATION_REQUIRED';
   verification.verifiedAt = null;
   verification.locationCoordinates = { latitude: null, longitude: null };
@@ -214,35 +228,27 @@ const requestReverification = asyncHandler(async (req, res) => {
   verification.distanceFlagged = false;
   await verification.save();
 
-  // Update employee status
   await EmployeeProfile.findByIdAndUpdate(
     verification.employeeId,
     { status: 'REVERIFICATION_REQUIRED' }
   );
 
-  // Log the action
   await AuditLog.create({
     actorId: req.userId,
     actionType: 'REVERIFICATION_REQUESTED',
     targetEmployeeId: verification.employeeId,
-    metadata: {
-      verificationId: verification._id
-    }
+    metadata: { verificationId: verification._id }
   });
 
   res.json({
     success: true,
     message: 'Re-verification requested successfully',
-    data: {
-      id: verification._id,
-      status: verification.verificationStatus
-    }
+    data: { id: verification._id, status: verification.verificationStatus }
   });
 });
 
 /**
  * @route   POST /api/admin/verifications/:id/review
- * @desc    Review and approve/reject a verification
  * @access  Admin only
  */
 const reviewVerification = asyncHandler(async (req, res) => {
@@ -259,29 +265,22 @@ const reviewVerification = asyncHandler(async (req, res) => {
     throw new AppError('Verification record not found', 404);
   }
 
-  // Update review fields
   verification.reviewStatus = reviewStatus;
-  verification.reviewNotes = reviewNotes || null;
-  verification.reviewedBy = req.userId;
-  verification.reviewedAt = new Date();
+  verification.reviewNotes  = reviewNotes || null;
+  verification.reviewedBy   = req.userId;
+  verification.reviewedAt   = new Date();
 
-  // If rejected, also update verification status to failed
   if (reviewStatus === 'REJECTED') {
     verification.verificationStatus = 'FAILED';
   }
 
   await verification.save();
 
-  // Log the action
   await AuditLog.create({
     actorId: req.userId,
     actionType: 'VERIFICATION_REVIEWED',
     targetEmployeeId: verification.employeeId,
-    metadata: {
-      verificationId: verification._id,
-      reviewStatus,
-      reviewNotes
-    }
+    metadata: { verificationId: verification._id, reviewStatus, reviewNotes }
   });
 
   res.json({
@@ -298,41 +297,32 @@ const reviewVerification = asyncHandler(async (req, res) => {
 
 /**
  * @route   GET /api/admin/dashboard/stats
- * @desc    Get dashboard statistics
  * @access  Admin only
  */
 const getDashboardStats = asyncHandler(async (req, res) => {
   const totalEmployees = await EmployeeProfile.countDocuments();
   const invited = await EmployeeProfile.countDocuments({ status: 'INVITED' });
-  
+
   const verifications = await AddressVerification.find().lean();
-  
-  const verified = verifications.filter(v => v.verificationStatus === 'VERIFIED').length;
-  const pending = verifications.filter(v => 
-    v.verificationStatus === 'PENDING_VERIFICATION' || 
+
+  const verified  = verifications.filter(v => v.verificationStatus === 'VERIFIED').length;
+  const pending   = verifications.filter(v =>
+    v.verificationStatus === 'PENDING_VERIFICATION' ||
     v.verificationStatus === 'PENDING_ADDRESS'
   ).length;
-  const failed = verifications.filter(v => v.verificationStatus === 'FAILED').length;
-  const reverificationRequired = verifications.filter(v => 
+  const failed    = verifications.filter(v => v.verificationStatus === 'FAILED').length;
+  const reverificationRequired = verifications.filter(v =>
     v.verificationStatus === 'REVERIFICATION_REQUIRED'
   ).length;
 
   res.json({
     success: true,
-    data: {
-      totalEmployees,
-      invited,
-      verified,
-      pending,
-      failed,
-      reverificationRequired
-    }
+    data: { totalEmployees, invited, verified, pending, failed, reverificationRequired }
   });
 });
 
 /**
  * @route   GET /api/admin/settings
- * @desc    Get company settings
  * @access  Admin only
  */
 const getSettings = asyncHandler(async (req, res) => {
@@ -354,17 +344,11 @@ const getSettings = asyncHandler(async (req, res) => {
 
 /**
  * @route   PUT /api/admin/settings/:id
- * @desc    Update company settings
  * @access  Admin only
  */
 const updateSettings = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { 
-    companyName, 
-    defaultWindowStart, 
-    defaultWindowEnd,
-    distanceThresholdKm 
-  } = req.body;
+  const { companyName, defaultWindowStart, defaultWindowEnd, distanceThresholdKm } = req.body;
 
   const settings = await CompanySettings.findById(id);
 
@@ -372,26 +356,17 @@ const updateSettings = asyncHandler(async (req, res) => {
     throw new AppError('Settings not found', 404);
   }
 
-  // Update fields
   if (companyName) settings.companyName = companyName;
   if (defaultWindowStart) settings.defaultWindowStart = defaultWindowStart;
   if (defaultWindowEnd) settings.defaultWindowEnd = defaultWindowEnd;
-  if (distanceThresholdKm !== undefined) {
-    settings.distanceThresholdKm = distanceThresholdKm;
-  }
+  if (distanceThresholdKm !== undefined) settings.distanceThresholdKm = distanceThresholdKm;
 
   await settings.save();
 
-  // Log the action
   await AuditLog.create({
     actorId: req.userId,
     actionType: 'SETTINGS_UPDATED',
-    metadata: {
-      companyName,
-      defaultWindowStart,
-      defaultWindowEnd,
-      distanceThresholdKm
-    }
+    metadata: { companyName, defaultWindowStart, defaultWindowEnd, distanceThresholdKm }
   });
 
   res.json({
