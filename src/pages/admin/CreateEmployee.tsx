@@ -46,7 +46,7 @@ const CreateEmployee = () => {
 
       const link = `${window.location.origin}/invite?token=${employee.invite_token}`;
       setInviteLink(link);
-      
+
       toast({
         title: 'Employee created!',
         description: 'The invite link is ready to share.',
@@ -95,10 +95,12 @@ const CreateEmployee = () => {
             <CheckCircle className="h-16 w-16 text-success mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-2">Employee Created!</h2>
             <p className="text-muted-foreground mb-6">
-              Share the invite link below with <strong>{fullName}</strong> to complete their registration.
+              <a className="text-primary" onClick={() => navigate('/admin/employees')}>              
+                Back to Employees
+              </a> invite link below with <strong>{fullName}</strong> to complete their registration.
             </p>
 
-            <div className="bg-muted p-4 rounded-lg mb-6">
+            {/* <div className="bg-muted p-4 rounded-lg mb-6">
               <Label className="text-sm text-muted-foreground mb-2 block">Invite Link</Label>
               <div className="flex items-center gap-2">
                 <Input
@@ -120,7 +122,7 @@ const CreateEmployee = () => {
               <Button variant="outline" onClick={createAnother}>
                 Create Another Employee
               </Button>
-            </div>
+            </div> */}
           </CardContent>
         </Card>
       </div>
@@ -191,8 +193,8 @@ const CreateEmployee = () => {
               />
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full"
               disabled={createEmployee.isPending}
             >
