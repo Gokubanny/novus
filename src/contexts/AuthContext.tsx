@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService, AuthUser } from '@/services/authService';
 import { ApiError } from '@/services/apiClient';
 
@@ -23,12 +23,39 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  // No localStorage means no async restore on mount — loading starts false.
-  // The user must log in fresh each session.
-  const [loading, setLoading] = useState(false);
+  // loading starts true so ProtectedRoute shows a spinner while we restore
+  // the session — prevents a flash-redirect to /auth on every page reload.
+  const [loading, setLoading] = useState(true);
 
   const userRole: UserRole = user?.role ?? null;
   const isAuthenticated = !!user;
+
+  // ── Restore session on mount ──────────────────────────────────────────────
+  // If a token exists in localStorage, call /auth/me to get the user object.
+  // This is what makes login persist across page reloads.
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = authService.getToken();
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const response = await authService.getCurrentUser();
+        // getCurrentUser returns the full auth response; the user is nested
+        const restoredUser = (response as any).user ?? response;
+        setUser(restoredUser as AuthUser);
+      } catch (error) {
+        // Token is expired or invalid — clear it so the user gets sent to login
+        authService.logout();
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
