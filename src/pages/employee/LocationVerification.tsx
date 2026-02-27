@@ -19,6 +19,21 @@ import { useCompanySettings } from '@/hooks/useAdmin';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 
+/**
+ * Returns the browser's current local time as "HH:MM" (24-hour).
+ *
+ * This is sent to the backend as `clientTime` so the verification window
+ * check uses the employee's local timezone (Nigeria WAT = UTC+1) rather
+ * than the server's UTC clock — which would cause the check to fail by
+ * 1 hour for any window that doesn't straddle the UTC midnight boundary.
+ */
+const getLocalTimeString = (): string => {
+  const now = new Date();
+  const hh = now.getHours().toString().padStart(2, '0');
+  const mm = now.getMinutes().toString().padStart(2, '0');
+  return `${hh}:${mm}`;
+};
+
 const LocationVerification = () => {
   const navigate = useNavigate();
   const { data: employee, isLoading: employeeLoading } = useCurrentEmployee();
@@ -39,13 +54,12 @@ const LocationVerification = () => {
     if (verification.status !== 'pending_verification' && verification.status !== 'reverification_required') return false;
     if (!verification.verification_window_start || !verification.verification_window_end) return false;
 
-    const now = new Date();
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
+    // Use the browser's local time — same value we'll send to the backend.
+    const currentTime = getLocalTimeString();
     const start = verification.verification_window_start;
     const end = verification.verification_window_end;
 
-    // Handle overnight windows
+    // Handle overnight windows (e.g., 22:00 - 04:00)
     if (start > end) {
       return currentTime >= start || currentTime <= end;
     }
@@ -80,11 +94,15 @@ const LocationVerification = () => {
 
       const { latitude, longitude } = position.coords;
 
-      // Submit verification with distance calculation
+      // Capture local time at the moment of submission so the backend window
+      // check uses Nigeria time (WAT) rather than the server's UTC clock.
+      const clientTime = getLocalTimeString();
+
       const result = await verifyLocation.mutateAsync({
         latitude,
         longitude,
         distanceThresholdKm: distanceThreshold,
+        clientTime,
       });
 
       // Show appropriate toast based on distance

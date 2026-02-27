@@ -359,9 +359,21 @@ const submitInspection = asyncHandler(async (req, res) => {
 /**
  * @route   POST /api/employee/verify-location
  * @access  Employee only
+ *
+ * FIX: Now accepts `clientTime` ("HH:MM") from the request body.
+ *
+ * Root cause of the original bug:
+ *   The server runs in UTC. Employees are in Nigeria (WAT = UTC+1).
+ *   When an employee selected a window of 23:00–00:00 (11 PM–midnight WAT),
+ *   the backend's isWithinVerificationWindow() used new Date() which returns
+ *   UTC time. At 11:30 PM Nigeria time = 10:30 PM UTC, the check saw
+ *   "22:30 >= 23:00" → false → rejected. The only moment it passed was
+ *   midnight Nigeria time = 23:00 UTC, making it appear to "only work at
+ *   midnight". By passing the browser's local time (clientTime), the check
+ *   always uses the correct timezone without any server config changes.
  */
 const verifyLocation = asyncHandler(async (req, res) => {
-  const { latitude, longitude, distanceThresholdKm } = req.body;
+  const { latitude, longitude, distanceThresholdKm, clientTime } = req.body;
 
   if (!latitude || !longitude) {
     throw new AppError('Latitude and longitude are required', 400);
@@ -383,9 +395,12 @@ const verifyLocation = asyncHandler(async (req, res) => {
     throw new AppError('Address must be submitted before verification', 400);
   }
 
+  // Pass clientTime so the window check uses the employee's local clock (WAT),
+  // not the server's UTC clock. Falls back gracefully if not provided.
   if (!isWithinVerificationWindow(
     verification.verificationWindowStart,
-    verification.verificationWindowEnd
+    verification.verificationWindowEnd,
+    clientTime || null
   )) {
     throw new AppError('Verification can only be done during your scheduled window', 400);
   }

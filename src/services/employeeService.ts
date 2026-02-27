@@ -99,6 +99,17 @@ export interface VerifyLocationRequest {
   latitude: number;
   longitude: number;
   distanceThresholdKm?: number;
+  /**
+   * The employee's current local time as "HH:MM" (24-hour, from their browser).
+   *
+   * Why this is needed:
+   * The backend server runs in UTC. Employees are in Nigeria (WAT = UTC+1).
+   * If we let the server use its own clock for the window check, a selection
+   * of e.g. "23:00–00:00" Nigeria time would be evaluated against UTC time,
+   * causing the check to fail by exactly 1 hour. Sending the browser's local
+   * time ensures the window is always checked in the employee's timezone.
+   */
+  clientTime?: string;
 }
 
 export interface VerifyLocationResponse {
