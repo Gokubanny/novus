@@ -253,9 +253,13 @@ const requestReverification = asyncHandler(async (req, res) => {
  */
 const reviewVerification = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { reviewStatus, reviewNotes } = req.body;
+// AFTER
+const { reviewNotes } = req.body;
+const reviewStatus = typeof req.body.reviewStatus === 'string'
+  ? req.body.reviewStatus.toUpperCase()
+  : req.body.reviewStatus;
 
-  if (!['APPROVED', 'REJECTED'].includes(reviewStatus)) {
+if (!['APPROVED', 'REJECTED'].includes(reviewStatus)) {
     throw new AppError('Review status must be APPROVED or REJECTED', 400);
   }
 
