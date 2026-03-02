@@ -1,43 +1,63 @@
-import { apiClient } from '@/services/apiClient';
+const axios = require('axios');
 
-interface GeocodeResult {
-  latitude: number | null;
-  longitude: number | null;
-  display_name: string | null;
-  error?: string;
-}
-
-export async function geocodeAddress(
-  street: string,
-  city: string,
-  state: string,
-  zip: string
-): Promise<GeocodeResult> {
+/**
+ * Geocode an address using OpenStreetMap Nominatim (free service)
+ */
+const geocodeAddress = async (street, city, state, zip) => {
   try {
-    // This would need a backend endpoint for geocoding
-    // For now, we'll let the backend handle geocoding
-    return { latitude: null, longitude: null, display_name: null };
-  } catch (err: any) {
-    console.error('Geocoding error:', err);
-    return { latitude: null, longitude: null, display_name: null, error: err.message };
+    const address = `${street}, ${city}, ${state} ${zip}`;
+    const encodedAddress = encodeURIComponent(address);
+    
+    const url = `${process.env.GEOCODING_SERVICE_URL || 'https://nominatim.openstreetmap.org/search'}?q=${encodedAddress}&format=json&limit=1`;
+    
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': process.env.GEOCODING_USER_AGENT || 'NovusGuard-AddressVerification/1.0',
+        'Accept': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    if (!response.data || response.data.length === 0) {
+      return {
+        latitude: null,
+        longitude: null,
+        displayName: null,
+        error: 'Address not found'
+      };
+    }
+
+    const result = response.data[0];
+
+    return {
+      latitude: parseFloat(result.lat),
+      longitude: parseFloat(result.lon),
+      displayName: result.display_name,
+      error: null
+    };
+
+  } catch (error) {
+    console.error('Geocoding error:', error.message);
+    return {
+      latitude: null,
+      longitude: null,
+      displayName: null,
+      error: error.message
+    };
   }
-}
+};
 
 /**
  * Calculate distance between two coordinates using Haversine formula
  * @returns Distance in kilometers
  */
-export function calculateDistanceKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371; // Earth's radius in km
+  
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   
-  const a =
+  const a = 
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
@@ -45,20 +65,46 @@ export function calculateDistanceKm(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = R * c;
   
-  return Math.round(distance * 100) / 100; // Round to 2 decimal places
-}
-
-function toRad(deg: number): number {
-  return deg * (Math.PI / 180);
-}
+  return Math.round(distance * 100) / 100;
+};
 
 /**
- * Format distance for display
+ * Convert degrees to radians
  */
-export function formatDistance(distanceKm: number | null): string {
-  if (distanceKm == null) return 'Unknown';
-  if (distanceKm < 1) {
-    return `${Math.round(distanceKm * 1000)}m`;
+const toRad = (degrees) => {
+  return degrees * (Math.PI / 180);
+};
+
+/**
+ * Check if current time is within verification window.
+ *
+ * @param {string} windowStart   - "HH:MM" (24-hour)
+ * @param {string} windowEnd     - "HH:MM" (24-hour)
+ * @param {string|null} clientTime - Employee's local time as "HH:MM", sent from
+ *   the browser. The backend server runs in UTC; employees are in Nigeria (WAT,
+ *   UTC+1). Passing the browser's local time avoids a 1-hour offset that causes
+ *   the window check to fail. Falls back to server time only if not provided.
+ */
+const isWithinVerificationWindow = (windowStart, windowEnd, clientTime = null) => {
+  let currentTime;
+
+  if (clientTime && /^\d{2}:\d{2}$/.test(clientTime)) {
+    currentTime = clientTime;
+  } else {
+    const now = new Date();
+    currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
   }
-  return `${distanceKm.toFixed(1)}km`;
-}
+
+  // Handle overnight windows (e.g., 22:00 - 04:00)
+  if (windowStart > windowEnd) {
+    return currentTime >= windowStart || currentTime <= windowEnd;
+  }
+
+  return currentTime >= windowStart && currentTime <= windowEnd;
+};
+
+module.exports = {
+  geocodeAddress,
+  calculateDistance,
+  isWithinVerificationWindow
+};
