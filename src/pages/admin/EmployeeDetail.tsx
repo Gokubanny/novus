@@ -16,7 +16,7 @@ import { useEmployeeById, useRequestReverification, useCompanySettings, useRevie
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
-import { formatDistance } from '@/lib/geocoding';
+import { formatDistance } from '@/lib/geocoding'
 import VerificationMap from '@/components/admin/VerificationMap';
 
 // ── Status badge ───────────────────────────────────────────────────────────

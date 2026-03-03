@@ -1,18 +1,18 @@
-const axios = require('axios');
+import axios from 'axios';
 
 /**
  * Geocode an address using OpenStreetMap Nominatim (free service)
  */
-const geocodeAddress = async (street, city, state, zip) => {
+export const geocodeAddress = async (street: string, city: string, state: string, zip: string) => {
   try {
     const address = `${street}, ${city}, ${state} ${zip}`;
     const encodedAddress = encodeURIComponent(address);
     
-    const url = `${process.env.GEOCODING_SERVICE_URL || 'https://nominatim.openstreetmap.org/search'}?q=${encodedAddress}&format=json&limit=1`;
+    const url = `${process.env.VITE_GEOCODING_SERVICE_URL || 'https://nominatim.openstreetmap.org/search'}?q=${encodedAddress}&format=json&limit=1`;
     
     const response = await axios.get(url, {
       headers: {
-        'User-Agent': process.env.GEOCODING_USER_AGENT || 'NovusGuard-AddressVerification/1.0',
+        'User-Agent': process.env.VITE_GEOCODING_USER_AGENT || 'NovusGuard-AddressVerification/1.0',
         'Accept': 'application/json'
       },
       timeout: 10000
@@ -36,7 +36,7 @@ const geocodeAddress = async (street, city, state, zip) => {
       error: null
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Geocoding error:', error.message);
     return {
       latitude: null,
@@ -51,7 +51,7 @@ const geocodeAddress = async (street, city, state, zip) => {
  * Calculate distance between two coordinates using Haversine formula
  * @returns Distance in kilometers
  */
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
+export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371; // Earth's radius in km
   
   const dLat = toRad(lat2 - lat1);
@@ -71,8 +71,22 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 /**
  * Convert degrees to radians
  */
-const toRad = (degrees) => {
+const toRad = (degrees: number): number => {
   return degrees * (Math.PI / 180);
+};
+
+/**
+ * Format distance in kilometers to a readable string
+ * @param {number} distanceKm - Distance in kilometers
+ * @returns {string} Formatted distance string (e.g., "1.5 km", "500 m")
+ */
+export const formatDistance = (distanceKm: number | null | undefined): string => {
+  if (distanceKm == null) return 'Unknown';
+  if (distanceKm < 1) {
+    const meters = Math.round(distanceKm * 1000);
+    return `${meters} m`;
+  }
+  return `${distanceKm.toFixed(2)} km`;
 };
 
 /**
@@ -85,8 +99,8 @@ const toRad = (degrees) => {
  *   UTC+1). Passing the browser's local time avoids a 1-hour offset that causes
  *   the window check to fail. Falls back to server time only if not provided.
  */
-const isWithinVerificationWindow = (windowStart, windowEnd, clientTime = null) => {
-  let currentTime;
+export const isWithinVerificationWindow = (windowStart: string, windowEnd: string, clientTime: string | null = null): boolean => {
+  let currentTime: string;
 
   if (clientTime && /^\d{2}:\d{2}$/.test(clientTime)) {
     currentTime = clientTime;
@@ -101,10 +115,4 @@ const isWithinVerificationWindow = (windowStart, windowEnd, clientTime = null) =
   }
 
   return currentTime >= windowStart && currentTime <= windowEnd;
-};
-
-module.exports = {
-  geocodeAddress,
-  calculateDistance,
-  isWithinVerificationWindow
 };
