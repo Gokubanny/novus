@@ -75,12 +75,17 @@ export const useReviewVerification = () => {
 
   return useMutation({
     mutationFn: ({
-      verificationId,
-      data,
+      recordId,
+      reviewStatus,
+      reviewNotes,
     }: {
-      verificationId: string;
-      data: ReviewVerificationRequest;
-    }) => adminService.reviewVerification(verificationId, data),
+      recordId: string;
+      reviewStatus: 'approved' | 'rejected';
+      reviewNotes?: string;
+    }) => adminService.reviewVerification(recordId, {
+      reviewStatus: reviewStatus.toUpperCase() as 'APPROVED' | 'REJECTED',
+      reviewNotes,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'employees'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'employee'] });
