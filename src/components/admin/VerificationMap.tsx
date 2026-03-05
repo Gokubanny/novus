@@ -30,6 +30,16 @@ const actualIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+// Blue icon for non-flagged actual location
+const actualIconBlue = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 interface VerificationMapProps {
   expectedLatitude?: number | null;
   expectedLongitude?: number | null;
@@ -86,6 +96,21 @@ const VerificationMap = ({
   const hasExpected = expectedLatitude != null && expectedLongitude != null;
   const hasActual = actualLatitude != null && actualLongitude != null;
 
+  // Debug logging
+  useEffect(() => {
+    console.log('VerificationMap received:', {
+      expectedLatitude,
+      expectedLongitude,
+      actualLatitude,
+      actualLongitude,
+      hasExpected,
+      hasActual,
+      submittedAddress,
+      distanceKm,
+      distanceFlagged
+    });
+  }, [expectedLatitude, expectedLongitude, actualLatitude, actualLongitude]);
+
   if (!hasExpected && !hasActual) {
     return (
       <div className="h-[300px] bg-muted rounded-lg flex items-center justify-center">
@@ -132,7 +157,10 @@ const VerificationMap = ({
           )}
 
           {hasActual && (
-            <Marker position={[actualLatitude!, actualLongitude!]} icon={actualIcon}>
+            <Marker 
+              position={[actualLatitude!, actualLongitude!]} 
+              icon={distanceFlagged ? actualIcon : actualIconBlue}
+            >
               <Popup>
                 <div className="text-sm">
                   <p className="font-semibold" style={{ color: distanceFlagged ? '#dc2626' : '#2563eb' }}>
