@@ -470,6 +470,31 @@ const EmployeeDetail = () => {
                   </Alert>
                 )}
 
+                {/* ── Address Comparison (when flagged) ──────────────────────── */}
+                {latestVerification.verified_at && latestVerification.distance_flagged && (
+                  <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5 space-y-3">
+                    <div className="font-semibold text-sm text-destructive flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Address Discrepancy Details
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground">📍 Submitted Address</p>
+                        <p className="text-sm p-2 bg-muted/50 rounded border border-border text-foreground whitespace-normal break-words">
+                          {ad?.full_address ||
+                            `${latestVerification.street || ''}${latestVerification.city ? `, ${latestVerification.city}` : ''}${latestVerification.state ? `, ${latestVerification.state}` : ''}`}
+                        </p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-destructive">🚩 GPS Detected Address</p>
+                        <p className="text-sm p-2 bg-destructive/10 rounded border border-destructive/30 text-foreground font-medium whitespace-normal break-words">
+                          {latestVerification.detected_address || 'Address not detected'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {latestVerification.verified_at ? (
                   <div className={`p-4 rounded-lg ${latestVerification.distance_flagged ? 'bg-destructive/10' : 'bg-success/10'}`}>
                     <div className="flex items-center gap-2 mb-3">
