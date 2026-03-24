@@ -2,7 +2,7 @@ const EmployeeProfile = require('../models/EmployeeProfile.model');
 const AddressVerification = require('../models/AddressVerification.model');
 const CompanySettings = require('../models/CompanySettings.model');
 const AuditLog = require('../models/AuditLog.model');
-const { geocodeAddress, calculateDistance, isWithinVerificationWindow } = require('../utils/geocoding');
+const { geocodeAddress, reverseGeocodeAddress, calculateDistance, isWithinVerificationWindow } = require('../utils/geocoding');
 const { asyncHandler, AppError } = require('../middleware/errorHandler');
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ const validateVerificationWindow = (windowStart, windowEnd) => {
   if (endIdx <= startIdx) {
     return 'End time must be later than start time within the 10:00 PM – 4:00 AM window.';
   }
-  return null; // valid
+  return null;
 };
 
 /**
@@ -419,7 +419,12 @@ const verifyLocation = asyncHandler(async (req, res) => {
     distanceFlagged = distance > threshold;
   }
 
+  // ── Reverse geocode the actual GPS coordinates to get the detected address ──
+  const reverseGeocodeResult = await reverseGeocodeAddress(latitude, longitude);
+  const detectedAddress = reverseGeocodeResult.displayName || 'Address not found';
+
   verification.locationCoordinates         = { latitude, longitude };
+  verification.detectedAddress             = detectedAddress;
   verification.verificationStatus          = 'VERIFIED';
   verification.verifiedAt                  = new Date();
   verification.distanceFromDeclaredAddress = distance;
@@ -440,6 +445,7 @@ const verifyLocation = asyncHandler(async (req, res) => {
     metadata: {
       verificationId: verification._id,
       latitude, longitude, distance, distanceFlagged,
+      detectedAddress,
       internalFlag: verification.internalFlag?.status || null
     }
   });

@@ -48,6 +48,43 @@ const geocodeAddress = async (street, city, state, zip) => {
 };
 
 /**
+ * Reverse geocode coordinates using OpenStreetMap Nominatim
+ * Converts latitude/longitude back to a readable address
+ */
+const reverseGeocodeAddress = async (latitude, longitude) => {
+  try {
+    const url = `${process.env.GEOCODING_SERVICE_URL || 'https://nominatim.openstreetmap.org/reverse'}?format=json&lat=${latitude}&lon=${longitude}`;
+    
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': process.env.GEOCODING_USER_AGENT || 'NovusGuard-AddressVerification/1.0',
+        'Accept': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    if (!response.data) {
+      return {
+        displayName: null,
+        error: 'Address not found'
+      };
+    }
+
+    return {
+      displayName: response.data.display_name,
+      error: null
+    };
+
+  } catch (error) {
+    console.error('Reverse geocoding error:', error.message);
+    return {
+      displayName: null,
+      error: error.message
+    };
+  }
+};
+
+/**
  * Calculate distance between two coordinates using Haversine formula
  * @returns Distance in kilometers
  */
@@ -105,6 +142,7 @@ const isWithinVerificationWindow = (windowStart, windowEnd, clientTime = null) =
 
 module.exports = {
   geocodeAddress,
+  reverseGeocodeAddress,
   calculateDistance,
   isWithinVerificationWindow
 };

@@ -204,14 +204,49 @@ const VerificationReview = () => {
                     
                     const distanceKm = record.distance_km;
                     const distanceFlagged = record.distance_flagged;
+                    const submittedAddress = record.street 
+                      ? `${record.street}, ${record.city || ''}`
+                      : 'Not submitted';
+                    const detectedAddress = record.detected_address || '-';
 
                     return (
                       <TableRow key={employee.id}>
                         <TableCell className="font-medium">{employee.full_name}</TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {record.street 
-                            ? `${record.street}, ${record.city || ''}`
-                            : 'Not submitted'}
+                        <TableCell>
+                          <div className="space-y-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="text-sm cursor-help">
+                                    <p className="font-medium text-foreground truncate max-w-xs">📍 Submitted: {submittedAddress}</p>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-sm">
+                                  <div>
+                                    <p className="font-semibold mb-1">Submitted Address</p>
+                                    <p>{submittedAddress}</p>
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            {record.status === 'verified' && distanceFlagged && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="text-sm cursor-help text-destructive">
+                                      <p className="font-medium truncate max-w-xs">🚩 Detected: {detectedAddress}</p>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-sm">
+                                    <div>
+                                      <p className="font-semibold mb-1">GPS Detected Address (Flagged)</p>
+                                      <p>{detectedAddress}</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <TooltipProvider>
@@ -241,7 +276,7 @@ const VerificationReview = () => {
                             : '-'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" asChild>
+                          <Button variant="ghost" size="icon" asChild title="View details and map">
                             <Link to={`/admin/employees/${employee.id}`}>
                               <Eye className="h-4 w-4" />
                             </Link>

@@ -65,6 +65,7 @@ const mapVerificationRecord = (v) => ({
   longitude:    v.locationCoordinates?.longitude,
   expected_latitude:  v.expectedLatitude,
   expected_longitude: v.expectedLongitude,
+  detected_address: v.detectedAddress,
   distance_km:    v.distanceFromDeclaredAddress,
   distance_flagged: v.distanceFlagged,
 

@@ -154,6 +154,14 @@ const addressVerificationSchema = new mongoose.Schema({
     longitude: { type: Number }
   },
 
+  // ── DETECTED ADDRESS — REVERSE GEOCODED ──────────────────────────────────
+  // Address reverse-geocoded from the actual GPS coordinates (locationCoordinates)
+  // Stored after location verification to show admin what address the GPS detected
+  detectedAddress: {
+    type: String,
+    default: null
+  },
+
   // ── DISTANCE VALIDATION ───────────────────────────────────────────────────
   distanceFromDeclaredAddress: {
     type: Number  // Kilometres, rounded to 2 decimal places
